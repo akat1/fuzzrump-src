@@ -43,6 +43,24 @@ __RCSID("$NetBSD: rumpuser_mem.c,v 1.2 2014/08/24 14:37:31 pooka Exp $");
 
 #include "rumpuser_int.h"
 
+void *
+rumpuser_libc_malloc(size_t s)
+{
+	return malloc(s);
+}
+
+void
+rumpuser_libc_free(void *ptr)
+{
+	free(ptr);
+}
+
+void *
+rumpuser_libc_realloc(void *ptr, size_t size)
+{
+	return realloc(ptr, size);
+}
+
 int
 rumpuser_malloc(size_t howmuch, int alignment, void **memp)
 {

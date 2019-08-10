@@ -67,6 +67,10 @@ void	*kern_malloc(unsigned long, int);
 void	*kern_realloc(void *, unsigned long, int);
 void	kern_free(void *);
 
+void *rumpuser_libc_malloc(size_t);
+void rumpuser_libc_free(void *);
+void *rumpuser_libc_realloc(void *, size_t);
+
 #define	malloc(size, type, flags)	kern_malloc(size, flags)
 #define	free(addr, type)		kern_free(addr)
 #define	realloc(ptr, size, type, flags)	kern_realloc(ptr, size, flags)
