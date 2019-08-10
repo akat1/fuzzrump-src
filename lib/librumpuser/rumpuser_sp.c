@@ -981,7 +981,7 @@ handlereq(struct spclient *spc)
 
 			/* ensure it's 0-terminated */
 			/* XXX make sure it contains sensible chars? */
-			comm[commlen] = '\0';
+			comm[commlen-1] = '\0';
 
 			/* make sure we fork off of proc1 */
 			_DIAGASSERT(lwproc_curlwp() == NULL);
