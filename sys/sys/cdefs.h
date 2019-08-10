@@ -559,10 +559,36 @@
  *	__link_set_entry(set, idx)
  *		Access the link set entry at index `idx' from set `set'.
  */
+
+
+#ifdef __has_feature
+#       if __has_feature(address_sanitizer)
+
+/* GOD HAVE MERCY ON US
+ *
+ * ASAN introduces redzones for variables in user sections but __link_set
+ * code assumes it's consistent. So we added _ugly_ fix to jump over redzones.
+ *
+ * I haven't found a way to disable ASAN red zones for particular section.
+ */
+
+#define	__link_set_foreach(pvar, set)					\
+	for (pvar = __link_set_start(set); pvar < __link_set_end(set); pvar = &pvar[8])
+
+#define	__link_set_entry(set, idx)	(__link_set_start(set)[idx*8])
+
+
+#       endif
+#else
+
 #define	__link_set_foreach(pvar, set)					\
 	for (pvar = __link_set_start(set); pvar < __link_set_end(set); pvar++)
 
 #define	__link_set_entry(set, idx)	(__link_set_start(set)[idx])
+
+#endif
+
+
 
 /*
  * Return the natural alignment in bytes for the given type
