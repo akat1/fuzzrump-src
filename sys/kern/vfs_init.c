@@ -194,6 +194,9 @@ sysctl_vfs_setup(void)
  * Init the vector, if it needs it.
  * Also handle backwards compatibility.
  */
+
+/* XXX fuzzrump: we have global names clash which leads to false positive */
+__attribute__((no_sanitize("address")))
 static void
 vfs_opv_init_explicit(const struct vnodeopv_desc *vfs_opv_desc)
 {
