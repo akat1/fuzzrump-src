@@ -329,17 +329,19 @@ DESTDIR?=
 # Don't append another copy of sysroot (coming from COMPATCPPFLAGS etc.)
 # because it confuses Coverity. Still we need to cov-configure specially
 # for each specific sysroot argument.
+# fuzzrump XXX: do not add sysroot
+
 .if !defined(HOSTPROG) && !defined(HOSTLIB)
 .  if ${DESTDIR} != ""
 .	if empty(CPPFLAGS:M*--sysroot=*)
-CPPFLAGS+=	--sysroot=${DESTDIR}
+##CPPFLAGS+=	--sysroot=${DESTDIR}
 .	endif
-LDFLAGS+=	--sysroot=${DESTDIR}
+##LDFLAGS+=	--sysroot=${DESTDIR}
 .  else
 .	if empty(CPPFLAGS:M*--sysroot=*)
-CPPFLAGS+=	--sysroot=/
+##CPPFLAGS+=	--sysroot=/
 .	endif
-LDFLAGS+=	--sysroot=/
+##LDFLAGS+=	--sysroot=/
 .  endif
 .endif
 
