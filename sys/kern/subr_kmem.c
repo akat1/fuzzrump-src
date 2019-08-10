@@ -250,7 +250,7 @@ kmem_intr_zalloc(size_t size, km_flag_t kmflags)
 void
 kmem_intr_free(void *p, size_t requested_size)
 {
-	rumpuser_free(p);
+	rumpuser_libc_free(p);
 }
 
 /* ---- kmem API */

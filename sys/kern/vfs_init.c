@@ -196,7 +196,7 @@ sysctl_vfs_setup(void)
  */
 
 /* XXX fuzzrump: we have global names clash which leads to false positive */
-__attribute__((no_sanitize("address")))
+__attribute__((no_sanitize_address))
 static void
 vfs_opv_init_explicit(const struct vnodeopv_desc *vfs_opv_desc)
 {

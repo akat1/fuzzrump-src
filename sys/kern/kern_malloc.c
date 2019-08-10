@@ -126,9 +126,6 @@ kern_free(void *addr)
 void *
 kern_realloc(void *curaddr, unsigned long newsize, int flags)
 {
-	unsigned long cursize;
-	void *newaddr;
-
 	/*
 	 * realloc() with a NULL pointer is the same as malloc().
 	 */

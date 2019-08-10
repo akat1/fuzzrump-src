@@ -255,8 +255,6 @@ TAILQ_HEAD(,pool_cache) pool_cache_head =
 int pool_cache_disable;		/* global disable for caching */
 static const pcg_t pcg_dummy;	/* zero sized: always empty, yet always full */
 
-static bool	pool_cache_get_slow(pool_cache_cpu_t *, int,
-				    void **, paddr_t *, int);
 static void	pool_cache_cpu_init1(struct cpu_info *, pool_cache_t);
 static void	pool_cache_invalidate_groups(pool_cache_t, pcg_t *);
 static void	pool_cache_invalidate_cpu(pool_cache_t, u_int);
@@ -942,98 +940,6 @@ pool_get(struct pool *pp, int flags)
 	}
 
 	return object;
-}
-
-/*
- * Internal version of pool_put().  Pool is already locked/entered.
- */
-static void
-pool_do_put(struct pool *pp, void *v, struct pool_pagelist *pq)
-{
-	struct pool_item_header *ph;
-
-	KASSERT(mutex_owned(&pp->pr_lock));
-	pool_redzone_check(pp, v);
-	FREECHECK_IN(&pp->pr_freecheck, v);
-	LOCKDEBUG_MEM_CHECK(v, pp->pr_size);
-
-	KASSERTMSG((pp->pr_nout > 0),
-	    "%s: [%s] putting with none out", __func__, pp->pr_wchan);
-
-	if (__predict_false((ph = pr_find_pagehead(pp, v)) == NULL)) {
-		panic("%s: [%s] page header missing", __func__,  pp->pr_wchan);
-	}
-
-	/*
-	 * Return to item list.
-	 */
-	if (pp->pr_roflags & PR_USEBMAP) {
-		pr_item_bitmap_put(pp, ph, v);
-	} else {
-		pr_item_linkedlist_put(pp, ph, v);
-	}
-	KDASSERT(ph->ph_nmissing != 0);
-	ph->ph_nmissing--;
-	pp->pr_nput++;
-	pp->pr_nitems++;
-	pp->pr_nout--;
-
-	/* Cancel "pool empty" condition if it exists */
-	if (pp->pr_curpage == NULL)
-		pp->pr_curpage = ph;
-
-	if (pp->pr_flags & PR_WANTED) {
-		pp->pr_flags &= ~PR_WANTED;
-		cv_broadcast(&pp->pr_cv);
-	}
-
-	/*
-	 * If this page is now empty, do one of two things:
-	 *
-	 *	(1) If we have more pages than the page high water mark,
-	 *	    free the page back to the system.  ONLY CONSIDER
-	 *	    FREEING BACK A PAGE IF WE HAVE MORE THAN OUR MINIMUM PAGE
-	 *	    CLAIM.
-	 *
-	 *	(2) Otherwise, move the page to the empty page list.
-	 *
-	 * Either way, select a new current page (so we use a partially-full
-	 * page if one is available).
-	 */
-	if (ph->ph_nmissing == 0) {
-		pp->pr_nidle++;
-		if (pp->pr_npages > pp->pr_minpages &&
-		    pp->pr_npages > pp->pr_maxpages) {
-			pr_rmpage(pp, ph, pq);
-		} else {
-			LIST_REMOVE(ph, ph_pagelist);
-			LIST_INSERT_HEAD(&pp->pr_emptypages, ph, ph_pagelist);
-
-			/*
-			 * Update the timestamp on the page.  A page must
-			 * be idle for some period of time before it can
-			 * be reclaimed by the pagedaemon.  This minimizes
-			 * ping-pong'ing for memory.
-			 *
-			 * note for 64-bit time_t: truncating to 32-bit is not
-			 * a problem for our usage.
-			 */
-			ph->ph_time = time_uptime;
-		}
-		pool_update_curpage(pp);
-	}
-
-	/*
-	 * If the page was previously completely full, move it to the
-	 * partially-full list and make it the current page.  The next
-	 * allocation will get the item from this page, instead of
-	 * further fragmenting the pool.
-	 */
-	else if (ph->ph_nmissing == (pp->pr_itemsperpage - 1)) {
-		LIST_REMOVE(ph, ph_pagelist);
-		LIST_INSERT_HEAD(&pp->pr_partpages, ph, ph_pagelist);
-		pp->pr_curpage = ph;
-	}
 }
 
 void
@@ -2171,99 +2077,6 @@ pool_cache_sethardlimit(pool_cache_t pc, int n, const char *warnmess, int rateca
 {
 
 	pool_sethardlimit(&pc->pc_pool, n, warnmess, ratecap);
-}
-
-static bool __noinline
-pool_cache_get_slow(pool_cache_cpu_t *cc, int s, void **objectp,
-		    paddr_t *pap, int flags)
-{
-	pcg_t *pcg, *cur;
-	uint64_t ncsw;
-	pool_cache_t pc;
-	void *object;
-
-	KASSERT(cc->cc_current->pcg_avail == 0);
-	KASSERT(cc->cc_previous->pcg_avail == 0);
-
-	pc = cc->cc_cache;
-	cc->cc_misses++;
-
-	/*
-	 * Nothing was available locally.  Try and grab a group
-	 * from the cache.
-	 */
-	if (__predict_false(!mutex_tryenter(&pc->pc_lock))) {
-		ncsw = curlwp->l_ncsw;
-		mutex_enter(&pc->pc_lock);
-		pc->pc_contended++;
-
-		/*
-		 * If we context switched while locking, then
-		 * our view of the per-CPU data is invalid:
-		 * retry.
-		 */
-		if (curlwp->l_ncsw != ncsw) {
-			mutex_exit(&pc->pc_lock);
-			return true;
-		}
-	}
-
-	if (__predict_true((pcg = pc->pc_fullgroups) != NULL)) {
-		/*
-		 * If there's a full group, release our empty
-		 * group back to the cache.  Install the full
-		 * group as cc_current and return.
-		 */
-		if (__predict_true((cur = cc->cc_current) != &pcg_dummy)) {
-			KASSERT(cur->pcg_avail == 0);
-			cur->pcg_next = pc->pc_emptygroups;
-			pc->pc_emptygroups = cur;
-			pc->pc_nempty++;
-		}
-		KASSERT(pcg->pcg_avail == pcg->pcg_size);
-		cc->cc_current = pcg;
-		pc->pc_fullgroups = pcg->pcg_next;
-		pc->pc_hits++;
-		pc->pc_nfull--;
-		mutex_exit(&pc->pc_lock);
-		return true;
-	}
-
-	/*
-	 * Nothing available locally or in cache.  Take the slow
-	 * path: fetch a new object from the pool and construct
-	 * it.
-	 */
-	pc->pc_misses++;
-	mutex_exit(&pc->pc_lock);
-	splx(s);
-
-	object = pool_get(&pc->pc_pool, flags);
-	*objectp = object;
-	if (__predict_false(object == NULL)) {
-		KASSERT((flags & (PR_WAITOK|PR_NOWAIT)) == PR_NOWAIT);
-		return false;
-	}
-
-	if (__predict_false((*pc->pc_ctor)(pc->pc_arg, object, flags) != 0)) {
-		pool_put(&pc->pc_pool, object);
-		*objectp = NULL;
-		return false;
-	}
-
-	KASSERT((((vaddr_t)object) & (pc->pc_pool.pr_align - 1)) == 0);
-
-	if (pap != NULL) {
-#ifdef POOL_VTOPHYS
-		*pap = POOL_VTOPHYS(object);
-#else
-		*pap = POOL_PADDR_INVALID;
-#endif
-	}
-
-	FREECHECK_OUT(&pc->pc_freecheck, object);
-	pool_cache_kleak_fill(pc, object);
-	return false;
 }
 
 /*
