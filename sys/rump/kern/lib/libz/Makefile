@@ -13,5 +13,6 @@ SRCS=	zlib.c
 .include <bsd.klinks.mk>
 
 .if defined(HAVE_GCC) && ${HAVE_GCC} == 7 && ${ACTIVE_CC} == "gcc"
-COPTS.zlib.c+=	-Wno-error=implicit-fallthrough
+# XXX: fuzzrump let it build on older gcc
+# COPTS.zlib.c+=	-Wno-error=implicit-fallthrough
 .endif
