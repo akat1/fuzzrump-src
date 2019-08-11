@@ -8,6 +8,6 @@ SRCS=		rump_allserver.c
 NOMAN=		installed by ../rump_allserver
 
 LDADD+=		-Wl,--whole-archive -lrumpkern_sysproxy -lrump -lrumpvfs \
-		-lrumpuser -Wl,--no-whole-archive -lpthread
+		-lrumpuser -Wl,--no-whole-archive -lrt -pthread
 
 .include <bsd.prog.mk>

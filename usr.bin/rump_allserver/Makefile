@@ -12,6 +12,6 @@ RUMPTOP=${.CURDIR}/../../sys/rump
 .include "${RUMPTOP}/net/Makefile.rumpnetcomp"
 
 LDADD+=	${RUMPDEVLDADD} ${RUMPFSLDADD} ${RUMPKERNLDADD} ${RUMPNETLDADD}
-LDADD+= -lrumpdev -lrumpvfs -lrumpnet -lrump -lrumpuser -lpthread
+LDADD+= -lrumpdev -lrumpvfs -lrumpnet -lrump -lrumpuser -lrt -pthread
 
 .include <bsd.prog.mk>
