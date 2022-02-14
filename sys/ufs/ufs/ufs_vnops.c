@@ -1868,7 +1868,7 @@ ufs_strategy(void *v)
 	ip = VTOI(vp);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ufs_strategy: spec");
-	KASSERT(fstrans_held(vp->v_mount));
+	/* XXX: fuzzrump KASSERT(fstrans_held(vp->v_mount)); */
 	KASSERT(bp->b_bcount != 0);
 	if (bp->b_blkno == bp->b_lblkno) {
 		error = VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno,

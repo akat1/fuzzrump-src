@@ -231,11 +231,14 @@ cd9660_mount(struct mount *mp, const char *path, void *data, size_t *data_len)
 		return 0;
 	}
 
+    /* XXX: fuzzrump */
+#if 0
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		return (EROFS);
 
 	if ((mp->mnt_flag & MNT_UPDATE) && args->fspec == NULL)
 		return EINVAL;
+#endif
 
 	/*
 	 * Not an update, or updating the name: look up the name

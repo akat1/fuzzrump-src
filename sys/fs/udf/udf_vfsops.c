@@ -335,6 +335,8 @@ udf_mount(struct mount *mp, const char *path,
 
 	/* check/translate struct version */
 	/* TODO sanity checking other mount arguments */
+    /* XXX: FUZZRUMP ssorry */
+    args->version = 1;
 	if (args->version != 1) {
 		printf("mount_udf: unrecognized argument structure version\n");
 		return EINVAL;
