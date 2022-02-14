@@ -530,7 +530,10 @@ m_get(int how, int type)
 	    how == M_WAIT ? PR_WAITOK|PR_LIMITFAIL : PR_NOWAIT);
 	if (m == NULL)
 		return NULL;
+	#if 0
+    /* XXX: FUZZRUMP */
 	KASSERT(((vaddr_t)m->m_dat & PAGE_MASK) + MLEN <= PAGE_SIZE);
+	#endif
 
 	mbstat_type_add(type, 1);
 
@@ -584,8 +587,11 @@ m_clget(struct mbuf *m, int how)
 	if (m->m_ext_storage.ext_buf == NULL)
 		return;
 
+    /*
+    XXX: FUZZRUMP
 	KASSERT(((vaddr_t)m->m_ext_storage.ext_buf & PAGE_MASK) + mclbytes
 	    <= PAGE_SIZE);
+    */
 
 	MCLINITREFERENCE(m);
 	m->m_data = m->m_ext.ext_buf;
