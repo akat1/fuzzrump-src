@@ -400,7 +400,9 @@ int _sys_sched_yield(void);
 int
 __libc_thr_yield_stub(void)
 {
-	return _sys_sched_yield();
+	/*return _sys_sched_yield();*/
+	/*XXX: fuzzrump - let it build */
+	return 0;
 }
 
 int
