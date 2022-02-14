@@ -90,7 +90,7 @@ opentapdev(int devnum)
 
 #elif defined(__linux__)
 	struct ifreq ifr;
-	char devname[16];
+	char devname[15];
 
 	fd = open("/dev/net/tun", O_RDWR);
 	if (fd == -1) {
