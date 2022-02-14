@@ -66,6 +66,8 @@ rumpuser_thread_create(void *(*f)(void *), void *arg, const char *thrname,
 	if (joinable) {
 		NOFAIL(ptidp = malloc(sizeof(*ptidp)));
 		pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_JOINABLE);
+        assert(ptcookie);
+		*ptcookie = ptidp;
 	} else {
 		ptidp = &ptid;
 		pthread_attr_setdetachstate(&pattr, PTHREAD_CREATE_DETACHED);
@@ -89,11 +91,6 @@ rumpuser_thread_create(void *(*f)(void *), void *arg, const char *thrname,
 		pthread_setname_np(*ptidp, thrname);
 	}
 #endif
-
-	if (joinable) {
-		assert(ptcookie);
-		*ptcookie = ptidp;
-	}
 
 	pthread_attr_destroy(&pattr);
 
