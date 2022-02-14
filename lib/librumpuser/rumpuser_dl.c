@@ -45,7 +45,9 @@ __RCSID("$NetBSD: rumpuser_dl.c,v 1.33 2020/03/22 13:30:10 pgoyette Exp $");
 
 #include <sys/types.h>
 #include <sys/time.h>
+#if 0
 #include <sys/evcnt.h>
+#endif
 
 #include <assert.h>
 
