@@ -415,6 +415,38 @@ ipintr(void *arg __unused)
 }
 
 /*
+ * fuzzrump input for ip
+ */
+
+void fuzzrump_ip_input(char *d, size_t len);
+
+void
+fuzzrump_ip_input(char *d, size_t len)
+{
+	struct mbuf *m;
+    struct ifnet *rcvif;
+    struct psref psref;
+
+	/* build mbuf */
+	m = m_gethdr(M_NOWAIT, MT_DATA);
+	KASSERT(m);
+	m->m_len = m->m_pkthdr.len = 0;
+	m_copyback(m, 0, len, d);
+
+	/* push it to the lo0 interface */
+	m_set_rcvif(m, lo0ifp);
+
+	/* fake softint */
+	curlwp->l_pflag |= LP_INTR;
+	SOFTNET_KERNEL_LOCK_UNLESS_NET_MPSAFE();
+	rcvif = m_get_rcvif_psref(m, &psref);
+	ip_input(m, rcvif);
+	m_put_rcvif_psref(rcvif, &psref);
+	SOFTNET_KERNEL_UNLOCK_UNLESS_NET_MPSAFE();
+	curlwp->l_pflag ^= LP_INTR;
+}
+
+/*
  * IP input routine.  Checksum and byte swap header.  If fragmented
  * try to reassemble.  Process options.  Pass to next level.
  */
