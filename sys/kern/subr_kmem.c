@@ -93,6 +93,7 @@ __KERNEL_RCSID(0, "$NetBSD: subr_kmem.c,v 1.82 2021/02/06 13:54:48 joerg Exp $")
 #include <sys/cpu.h>
 #include <sys/asan.h>
 #include <sys/msan.h>
+#include <sys/malloc.h>
 
 #include <uvm/uvm_extern.h>
 #include <uvm/uvm_map.h>
@@ -186,50 +187,7 @@ CTASSERT(KM_NOSLEEP == PR_NOWAIT);
 void *
 kmem_intr_alloc(size_t requested_size, km_flag_t kmflags)
 {
-#ifdef KASAN
-	const size_t origsize = requested_size;
-#endif
-	size_t allocsz, index;
-	size_t size;
-	pool_cache_t pc;
-	uint8_t *p;
-
-	KASSERT(requested_size > 0);
-
-	KASSERT((kmflags & KM_SLEEP) || (kmflags & KM_NOSLEEP));
-	KASSERT(!(kmflags & KM_SLEEP) || !(kmflags & KM_NOSLEEP));
-
-	kasan_add_redzone(&requested_size);
-	size = kmem_roundup_size(requested_size);
-	allocsz = size + SIZE_SIZE;
-
-	if ((index = ((allocsz -1) >> KMEM_SHIFT))
-	    < kmem_cache_maxidx) {
-		pc = kmem_cache[index];
-	} else if ((index = ((allocsz - 1) >> KMEM_BIG_SHIFT))
-	    < kmem_cache_big_maxidx) {
-		pc = kmem_cache_big[index];
-	} else {
-		int ret = uvm_km_kmem_alloc(kmem_va_arena,
-		    (vsize_t)round_page(size),
-		    ((kmflags & KM_SLEEP) ? VM_SLEEP : VM_NOSLEEP)
-		     | VM_INSTANTFIT, (vmem_addr_t *)&p);
-		if (ret) {
-			return NULL;
-		}
-		FREECHECK_OUT(&kmem_freecheck, p);
-		return p;
-	}
-
-	p = pool_cache_get(pc, kmflags);
-
-	if (__predict_true(p != NULL)) {
-		FREECHECK_OUT(&kmem_freecheck, p);
-		kmem_size_set(p, requested_size);
-		kasan_mark(p, origsize, size, KASAN_KMEM_REDZONE);
-		return p;
-	}
-	return p;
+	return rumpuser_libc_malloc(requested_size);
 }
 
 /*
@@ -253,39 +211,7 @@ kmem_intr_zalloc(size_t size, km_flag_t kmflags)
 void
 kmem_intr_free(void *p, size_t requested_size)
 {
-	size_t allocsz, index;
-	size_t size;
-	pool_cache_t pc;
-
-	KASSERT(p != NULL);
-	if (__predict_false(requested_size == 0)) {
-		panic("%s: zero size with pointer %p", __func__, p);
-	}
-
-	kasan_add_redzone(&requested_size);
-	size = kmem_roundup_size(requested_size);
-	allocsz = size + SIZE_SIZE;
-
-	if ((index = ((allocsz -1) >> KMEM_SHIFT))
-	    < kmem_cache_maxidx) {
-		pc = kmem_cache[index];
-	} else if ((index = ((allocsz - 1) >> KMEM_BIG_SHIFT))
-	    < kmem_cache_big_maxidx) {
-		pc = kmem_cache_big[index];
-	} else {
-		FREECHECK_IN(&kmem_freecheck, p);
-		uvm_km_kmem_free(kmem_va_arena, (vaddr_t)p,
-		    round_page(size));
-		return;
-	}
-
-	kasan_mark(p, size, size, 0);
-
-	kmem_size_check(p, requested_size);
-	FREECHECK_IN(&kmem_freecheck, p);
-	LOCKDEBUG_MEM_CHECK(p, size);
-
-	pool_cache_put(pc, p);
+	rumpuser_libc_free(p);
 }
 
 /* -------------------------------- Kmem API -------------------------------- */

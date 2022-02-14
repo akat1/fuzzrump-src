@@ -104,85 +104,34 @@ struct malloc_header {
 void *
 kern_malloc(unsigned long reqsize, int flags)
 {
-	const int kmflags = (flags & M_NOWAIT) ? KM_NOSLEEP : KM_SLEEP;
-#ifdef KASAN
-	const size_t origsize = reqsize;
-#endif
-	size_t size = reqsize;
-	size_t allocsize, hdroffset;
-	struct malloc_header *mh;
-	void *p;
+	void *rv = rumpuser_libc_malloc(reqsize);
 
-	kasan_add_redzone(&size);
-
-	if (size >= PAGE_SIZE) {
-		if (size > (ULONG_MAX-PAGE_SIZE))
-			allocsize = ULONG_MAX;	/* this will fail later */
-		else
-			allocsize = PAGE_SIZE + size; /* for page alignment */
-		hdroffset = PAGE_SIZE - sizeof(struct malloc_header);
-	} else {
-		allocsize = sizeof(struct malloc_header) + size;
-		hdroffset = 0;
-	}
-
-	p = kmem_intr_alloc(allocsize, kmflags);
-	if (p == NULL)
+	if (rv == NULL)
 		return NULL;
 
-	kmsan_mark(p, allocsize, KMSAN_STATE_UNINIT);
-	kmsan_orig(p, allocsize, KMSAN_TYPE_MALLOC, __RET_ADDR);
-
-	if ((flags & M_ZERO) != 0) {
-		memset(p, 0, allocsize);
+	if ((flags & M_NOWAIT) == 0) {
+		ASSERT_SLEEPABLE();
 	}
-	mh = (void *)((char *)p + hdroffset);
-	mh->mh_size = allocsize - hdroffset;
-#ifdef KASAN
-	mh->mh_rqsz = origsize;
-#endif
-	mh++;
+	if (flags & M_ZERO)
+		memset(rv, 0, reqsize);
 
-	kasan_mark(mh, origsize, size, KASAN_MALLOC_REDZONE);
-
-	return mh;
+	return rv;
 }
 
 void
 kern_free(void *addr)
 {
-	struct malloc_header *mh;
-
-	mh = addr;
-	mh--;
-
-	kasan_mark(addr, mh->mh_size - sizeof(struct malloc_header),
-	    mh->mh_size - sizeof(struct malloc_header), KASAN_MALLOC_REDZONE);
-
-	if (mh->mh_size >= PAGE_SIZE + sizeof(struct malloc_header)) {
-		kmsan_mark((char *)addr - PAGE_SIZE,
-		    mh->mh_size + PAGE_SIZE - sizeof(struct malloc_header),
-		    KMSAN_STATE_INITED);
-		kmem_intr_free((char *)addr - PAGE_SIZE,
-		    mh->mh_size + PAGE_SIZE - sizeof(struct malloc_header));
-	} else {
-		kmsan_mark(mh, mh->mh_size, KMSAN_STATE_INITED);
-		kmem_intr_free(mh, mh->mh_size);
-	}
+	rumpuser_libc_free(addr);
 }
 
 void *
 kern_realloc(void *curaddr, unsigned long newsize, int flags)
 {
-	struct malloc_header *mh;
-	unsigned long cursize;
-	void *newaddr;
-
 	/*
 	 * realloc() with a NULL pointer is the same as malloc().
 	 */
 	if (curaddr == NULL)
-		return malloc(newsize, ksp, flags);
+		return kern_malloc(newsize, flags);
 
 	/*
 	 * realloc() with zero size is the same as free().
@@ -196,40 +145,5 @@ kern_realloc(void *curaddr, unsigned long newsize, int flags)
 		ASSERT_SLEEPABLE();
 	}
 
-	mh = curaddr;
-	mh--;
-
-#ifdef KASAN
-	cursize = mh->mh_rqsz;
-#else
-	cursize = mh->mh_size - sizeof(struct malloc_header);
-#endif
-
-	/*
-	 * If we already actually have as much as they want, we're done.
-	 */
-	if (newsize <= cursize)
-		return curaddr;
-
-	/*
-	 * Can't satisfy the allocation with the existing block.
-	 * Allocate a new one and copy the data.
-	 */
-	newaddr = malloc(newsize, ksp, flags);
-	if (__predict_false(newaddr == NULL)) {
-		/*
-		 * malloc() failed, because flags included M_NOWAIT.
-		 * Return NULL to indicate that failure.  The old
-		 * pointer is still valid.
-		 */
-		return NULL;
-	}
-	memcpy(newaddr, curaddr, cursize);
-
-	/*
-	 * We were successful: free the old allocation and return
-	 * the new one.
-	 */
-	free(curaddr, ksp);
-	return newaddr;
+	return rumpuser_libc_realloc(curaddr, newsize);
 }
