@@ -412,9 +412,11 @@ struct sysnames {
 
 #ifdef __NetBSD__
 	{ DUALCALL_LINKAT,	"linkat",	RSYS_NAME(LINKAT)	},
-#endif
+#if 0
 	{ DUALCALL_PATHCONF,	"pathconf",	RSYS_NAME(PATHCONF)	},
 	{ DUALCALL_LPATHCONF,	"lpathconf",	RSYS_NAME(LPATHCONF)	},
+#endif
+#endif
 };
 #undef S
 
@@ -1355,6 +1357,7 @@ linkat(int fromfd, const char *from, int tofd, const char *to, int flags)
 }
 #endif
 
+#ifdef __NetBSD__
 static long
 do_pathconf(const char *path, int name, int link)
 {
@@ -1387,6 +1390,7 @@ pathconf(const char *path, int name)
 {
 	return do_pathconf(path, name, 0);
 }
+#endif
 
 int
 link(const char *from, const char *to)
