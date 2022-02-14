@@ -5,7 +5,7 @@
 
 RUMPNETCOMP=	agr altq bridge net net80211 netbt netcan netinet netinet6
 RUMPNETCOMP+=	netipsec gif ipsec netmpls npf l2tp lagg local pppoe shmif tap
-RUMPNETCOMP+=	tun vlan vether wg
+RUMPNETCOMP+=	tun vlan vether # wg
 
 .if ${MKSLJIT} != "no" || make(rumpdescribe)
 RUMPNETCOMP+=	bpfjit

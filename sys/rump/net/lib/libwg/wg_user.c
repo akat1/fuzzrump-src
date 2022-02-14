@@ -29,7 +29,10 @@
  */
 
 #include <sys/cdefs.h>
+
+#ifdef __KERNEL_RCSID
 __KERNEL_RCSID(0, "$NetBSD: wg_user.c,v 1.3 2020/08/27 02:51:15 riastradh Exp $");
+#endif
 
 #ifndef _KERNEL
 #include <sys/types.h>
@@ -39,7 +42,9 @@ __KERNEL_RCSID(0, "$NetBSD: wg_user.c,v 1.3 2020/08/27 02:51:15 riastradh Exp $"
 #include <sys/param.h>
 
 #include <net/if.h>
+#if 0
 #include <net/if_tun.h>
+#endif
 
 #include <netinet/in.h>
 
