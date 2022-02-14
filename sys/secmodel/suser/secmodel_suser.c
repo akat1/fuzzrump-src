@@ -52,6 +52,8 @@ __KERNEL_RCSID(0, "$NetBSD: secmodel_suser.c,v 1.55 2020/09/08 14:12:57 christos
 #include <sys/proc.h>
 #include <sys/module.h>
 
+#include <lib/libkern/libkern.h>
+
 #include <secmodel/secmodel.h>
 #include <secmodel/suser/suser.h>
 
