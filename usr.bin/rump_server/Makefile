@@ -14,7 +14,7 @@ LDADD+= \
     -Wl,--whole-archive \
 	-lrumpkern_sysproxy -lrump -lrumpvfs_nofifofs -lrumpvfs -lrumpuser \
     -Wl,--no-whole-archive
-LDADD+= -lpthread
+LDADD+= -lpthread -pthread
 
 .if ${RUMP_SANITIZE:Uno} != "no"
 LDADD+=	-fsanitize=${RUMP_SANITIZE}
