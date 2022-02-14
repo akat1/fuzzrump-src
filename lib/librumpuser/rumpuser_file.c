@@ -51,7 +51,9 @@ __RCSID("$NetBSD: rumpuser_file.c,v 1.4 2014/11/04 21:08:12 pooka Exp $");
 #endif
 
 #if defined(HAVE_SYS_SYSCTL_H)
+#if 0
 #include <sys/sysctl.h>
+#endif
 #endif
 
 #include <assert.h>
