@@ -63,6 +63,10 @@ MALLOC_DECLARE(M_NETADDR);
 MALLOC_DECLARE(M_MRTABLE);
 #endif
 
+void *rumpuser_libc_malloc(size_t);
+void rumpuser_libc_free(void *);
+void *rumpuser_libc_realloc(void *, size_t);
+
 void	*kern_malloc(unsigned long, int);
 void	*kern_realloc(void *, unsigned long, int);
 void	kern_free(void *);
