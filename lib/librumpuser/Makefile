@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile,v 1.29 2021/11/01 21:37:33 nia Exp $
 #
 
-NOFULLRELRO=	yes
+#NOFULLRELRO=	yes
 
 .include <bsd.own.mk>
 
